@@ -20,12 +20,17 @@ var Massive = function(args){
   _.extend(this,runner);
 
   this.allowedSchemas = '';
+  this.blacklist = '';
+  this.whitelist = '';
+
   this.tables = [];
   this.queryFiles = [];
   this.schemas = [];
   this.functions = [];
 
   this.setAllowedSchemas(args.allowedSchemas);
+  this.setTableBlacklistFilter(args.blacklist);
+  this.setTableWhiteListFilter(args.whitelist);
 }
 
 Massive.prototype.setAllowedSchemas = function(allowedSchemas) { 
@@ -50,6 +55,42 @@ Massive.prototype.setAllowedSchemas = function(allowedSchemas) {
   }
 };
 
+Massive.prototype.setTableBlacklistFilter = function(blacklist) { 
+  // an empty string will cause all schema to be loaded by default:
+  this.blacklist = '';
+  if(blacklist) { 
+    // there is a value of some sort other than our acceptable defaults:
+    if(_.isString(blacklist)) { 
+      // a string works. If comma-delimited, so much the better, we're done:
+      this.blacklist = blacklist;
+    } else { 
+      if(!_.isArray(blacklist)) { 
+        throw("Specify filter patterns using either a commma-delimited string or an array of strings");
+      }
+      // create a comma-delimited string:
+      this.blacklist = blacklist.join(", ");
+    }
+  }
+};
+
+Massive.prototype.setTableWhiteListFilter = function(whitelist) { 
+  // an empty string will cause all schema to be loaded by default:
+  this.whitelist = '';
+  if(whitelist) { 
+    // there is a value of some sort other than our acceptable defaults:
+    if(_.isString(whitelist)) { 
+      // a string works. If comma-delimited, so much the better, we're done:
+      this.whitelist = whitelist;
+    } else { 
+      if(!_.isArray(whitelist)) { 
+        throw("Specify filter patterns using either a commma-delimited string or an array of strings");
+      }
+      // create a comma-delimited string:
+      this.whitelist = whitelist.join(", ");
+    }
+  }
+};
+
 Massive.prototype.run = function(){
   var args = ArgTypes.queryArgs(arguments);
   this.query(args);
@@ -63,7 +104,7 @@ Massive.prototype.loadQueries = function() {
 Massive.prototype.loadTables = function(next){
   var tableSql = __dirname + "/lib/scripts/tables.sql";
   var self = this;
-  this.executeSqlFile({file : tableSql, params: [this.allowedSchemas]}, function(err,tables){
+  this.executeSqlFile({file : tableSql, params: [this.allowedSchemas, this.blacklist, this.whitelist]}, function(err,tables){
     if(err){
       next(err,null);
     }else{

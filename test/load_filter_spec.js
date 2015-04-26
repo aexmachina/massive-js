@@ -59,7 +59,70 @@ describe('On Load with Schema Filters', function () {
 
 
 
-describe('Synchronous Load', function () {
+describe('On Load with Table blacklist', function () {
+  it('loads all tables when no blacklist argument is provided', function (done) { 
+    massive.connect({connectionString: constr}, function (err, db) { 
+      assert(db.products && db.myschema.artists && db.secrets.__secret_table && db.tables.length == 8);
+      done();
+    });
+  });
+  it('excludes tables with name matching blacklist pattern as a string argument', function (done) { 
+    massive.connect({connectionString: constr, blacklist: "prod%"}, function (err, db) { 
+      assert(!db.products && db.myschema.artists && db.secrets.__secret_table && db.tables.length == 7);
+      done();
+    });
+  });
+  it('excludes tables with name and schema matching blacklist pattern as a string argument', function (done) { 
+    massive.connect({connectionString: constr, blacklist: "secrets.__semi%"}, function (err, db) { 
+      assert(db.products && db.myschema.artists && db.secrets.__secret_table && !db.secrets.__semi_secret_table && db.tables.length == 7);
+      done();
+    });
+  });
+  it('excludes tables with name and schema matching multiiple blacklist patterns as a comma-delimited string argument', function (done) { 
+    massive.connect({connectionString: constr, blacklist: "secrets.__semi%, prod%"}, function (err, db) { 
+      assert(!db.products && db.myschema.artists && db.secrets.__secret_table && !db.secrets.__semi_secret_table && db.tables.length == 6);
+      done();
+    });
+  });
+  it('excludes tables with name and schema matching multiiple blacklist patterns as a string array argument', function (done) { 
+    massive.connect({connectionString: constr, blacklist: ['secrets.__semi%', 'prod%']}, function (err, db) { 
+      assert(!db.products && db.myschema.artists && db.secrets.__secret_table && !db.secrets.__semi_secret_table && db.tables.length == 6);
+      done();
+    });
+  });
+});
+
+describe('On Load with Table whitelist', function () {
+  it('loads all tables when no whitelist argument is provided', function (done) { 
+    massive.connect({connectionString: constr}, function (err, db) { 
+      assert(db.products && db.myschema.artists && db.secrets.__secret_table && db.tables.length == 8);
+      done();
+    });
+  });
+  it('includes ONLY tables with name matching whitelist pattern as a string argument', function (done) { 
+    massive.connect({connectionString: constr, whitelist: "products"}, function (err, db) { 
+      assert(db.products && db.tables.length == 1);
+      done();
+    });
+  });
+  it('includes ONLY tables with name matching whitelisted items in comma-delimited string', function (done) { 
+    massive.connect({connectionString: constr, whitelist: 'products, myschema.artists'}, function (err, db) { 
+      assert(db.products && db.myschema.artists && db.tables.length == 2);
+      done();
+    });
+  });
+  it('includes ONLY tables with name matching whitelisted items in string array', function (done) { 
+    massive.connect({connectionString: constr, whitelist: ['products', 'myschema.artists']}, function (err, db) { 
+      assert(db.products && db.myschema.artists && db.tables.length == 2);
+      done();
+    });
+  });
+  it('excludes blacklisted tables from whitelist', function (done) { 
+    massive.connect({connectionString: constr, blacklist: 'pro%', whitelist: 'products, myschema.artists, docs'}, function (err, db) { 
+      assert(!db.products &&  db.docs && db.myschema.artists && db.tables.length == 2);
+      done();
+    });
+  });
+});
   
 
-});
