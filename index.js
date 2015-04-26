@@ -19,23 +19,23 @@ var Massive = function(args){
   var runner = new Runner(args.connectionString);
   _.extend(this,runner);
 
-  this.allowedSchemas = '';
-  this.blacklist = '';
-  this.whitelist = '';
-
   this.tables = [];
   this.queryFiles = [];
   this.schemas = [];
   this.functions = [];
 
-  this.setAllowedSchemas(args.allowedSchemas);
-  this.setTableBlacklistFilter(args.blacklist);
-  this.setTableWhiteListFilter(args.whitelist);
+  if(args.whitelist) {
+    this.whitelist = this.getTableFilter(args.whitelist);
+  } else {
+    this.allowedSchemas = this.getSchemaFilter(args.schema);
+    this.blacklist = this.getTableFilter(args.blacklist);
+    this.exceptions = this.getTableFilter(args.exceptions);
+  }
 }
 
-Massive.prototype.setAllowedSchemas = function(allowedSchemas) { 
+Massive.prototype.getSchemaFilter = function(allowedSchemas) { 
   // an empty string will cause all schema to be loaded by default:
-  this.allowedSchemas = '';
+  var result = '';
   if(allowedSchemas === 'all' || allowedSchemas === '*') {
     // Do nothing else. Leave the default empty string:
     allowedSchemas = null;
@@ -44,51 +44,35 @@ Massive.prototype.setAllowedSchemas = function(allowedSchemas) {
     // there is a value of some sort other than our acceptable defaults:
     if(_.isString(allowedSchemas)) { 
       // a string works. If comma-delimited, so much the better, we're done:
-      this.allowedSchemas = allowedSchemas;
+      result = allowedSchemas;
     } else { 
       if(!_.isArray(allowedSchemas)) { 
         throw("Specify allowed schemas using either a commma-delimited string or an array of strings");
       }
       // create a comma-delimited string:
-      this.allowedSchemas = allowedSchemas.join(", ");
+      result = allowedSchemas.join(", ");
     }
   }
+  return result;
 };
 
-Massive.prototype.setTableBlacklistFilter = function(blacklist) { 
+Massive.prototype.getTableFilter = function(filter) { 
   // an empty string will cause all schema to be loaded by default:
-  this.blacklist = '';
-  if(blacklist) { 
+  var result = '';
+  if(filter) { 
     // there is a value of some sort other than our acceptable defaults:
-    if(_.isString(blacklist)) { 
+    if(_.isString(filter)) { 
       // a string works. If comma-delimited, so much the better, we're done:
-      this.blacklist = blacklist;
+      result = filter;
     } else { 
-      if(!_.isArray(blacklist)) { 
+      if(!_.isArray(filter)) { 
         throw("Specify filter patterns using either a commma-delimited string or an array of strings");
       }
       // create a comma-delimited string:
-      this.blacklist = blacklist.join(", ");
+      result = filter.join(", ");
     }
   }
-};
-
-Massive.prototype.setTableWhiteListFilter = function(whitelist) { 
-  // an empty string will cause all schema to be loaded by default:
-  this.whitelist = '';
-  if(whitelist) { 
-    // there is a value of some sort other than our acceptable defaults:
-    if(_.isString(whitelist)) { 
-      // a string works. If comma-delimited, so much the better, we're done:
-      this.whitelist = whitelist;
-    } else { 
-      if(!_.isArray(whitelist)) { 
-        throw("Specify filter patterns using either a commma-delimited string or an array of strings");
-      }
-      // create a comma-delimited string:
-      this.whitelist = whitelist.join(", ");
-    }
-  }
+  return result;
 };
 
 Massive.prototype.run = function(){
@@ -103,8 +87,15 @@ Massive.prototype.loadQueries = function() {
 
 Massive.prototype.loadTables = function(next){
   var tableSql = __dirname + "/lib/scripts/tables.sql";
+  var parameters = [this.allowedSchemas, this.blacklist, this.exceptions];
   var self = this;
-  this.executeSqlFile({file : tableSql, params: [this.allowedSchemas, this.blacklist, this.whitelist]}, function(err,tables){
+
+  // ONLY allow whitelisted items:
+  if(this.whitelist) { 
+    tableSql = __dirname + "/lib/scripts/whitelist.sql";
+    var parameters = [this.whitelist]
+  } 
+  this.executeSqlFile({file : tableSql, params: parameters}, function(err,tables){
     if(err){
       next(err,null);
     }else{
